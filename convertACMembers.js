@@ -1,14 +1,18 @@
 const cheerio = require("cheerio");
 const request = require("request-promise");
 const puppeteer = require('puppeteer');
+var stringSimilarity = require('string-similarity');
 let mysql  = require('promise-mysql');
+const createContact = require("./createContact.js");
 var config = {
     host    : 'localhost',
     user    : 'root',
     password: '',
     database: 'w3c'
   };
-  const url = 'https://app.bigcontacts.com/#/contacts/';
+  // auth
+const token = 'MmYyMzUwN2M2OGYxOGZiOTBjNzQ4NGUxYTJjNDc5N2NkNzQwMzk0NmM5ZjcyYjg2ZTNmOWY3MGViZTAxMDJkNQ';
+  const url = 'https://app.bigcontacts.com/#/reports/search';
   const processSQL = async () =>
   {
     const browser = await puppeteer.launch({headless : false});
@@ -17,7 +21,7 @@ var config = {
         width: 1200,
         height: 900
     });
-    await page.goto(url, {"waitUntil" : "networkidle0"})
+    await page.goto(url, {"waitUntil" : "networkidle0"});
     var connection = await mysql.createConnection(config);
     // logging in
     let username = await page.evaluate((user) => {
@@ -35,120 +39,285 @@ var config = {
     await page.waitForSelector('#contact_name_nav', {
         visible: true,
       });
-      // users with AC in from member db
-      var AC_users = ["Achille Zappa","Adam Boyet","Adam Hyde","Adrian Hope-Bailie","Adrian Pohl","Ahmed Hindawi","Ai bo Ai","Akihisa Ushirokawa","Alan Stearns","Alanna Gombert","Alastair Campbell","Alberto Pace","Alec Mulinder","Alessio Postiglione","Alex Bernier","Alex Momot","Alex Ortiz","Alexander Falk","Alexandre Gouaillard","Alois Reitbauer","Andreas Rossberg","Andreas Stahl","Andreas Tai","Andrei Lobov","Andrei Sambra","Andrew Pace","Andrew Sudbury","Andrew Watson","Andy Seaborne","Anish Karmarkar","Anne Thyme Nørregaard","Annette Greiner","Armin Haller","Arnaud Le Hors","Arne Kyrkjebø","Ash Harris","Atanas Kiryakov","Avneesh Singh","Axel Polleres","Baoping Yan","Bartek Kozlowski","Benfeng Chen","Bernardo Magnini","Bill Kasdorf","Bill Roberts","Bill Rogers","Björn Levin","Bob Bailey","Bob DeHoff","Boris Maurer","Brian Kardell","Brian Pech","Brian Ross","Brian Ulicny","Brian Weber","Brian Wilson","Bruce Levis","Bruno Marchesson","Can Wang","Carlos A. Velasco","Carmen Suárez","Caroline Boyd","Chang Hwa Lyou",
-     "Changlin Yao","Charles LaPierre","Charles McHardie","Cheryl Mish","Chiaki Fujimon","Chongping Wang","Chris Marconi","Chris Michael","Chris Needham","Chris O'Brien","Chris Tse","Christian Bromann","Christian Liebel","Christopher Casey","Christopher Mueller","Chunming Hu","Claudio Celeghin","Claus Christensen","Colin Meerveld","Colin Whorlow","Cristina Mussinelli","Cullen Jennings","Daihei Shiohama","Daisuke Ajitomi","Dan Druta","Dan Jones","Dan Lieberman","Dan Robbins","Dan Whaley","Daniel Burnett","Daniel Glazman","Daniel Glazman","Daniel Marques","Daniel Schutzer","Danny Aerts","Dave Fortney","David Baron","David Benoit","David Ezell","David Herr","David Hughes","David Rogers","David Singer","David Stroup","David Waite","David Zanoletty García","Dean Allemang","Deepesh Banerji","Deian Stefan","Dennis Buchheim","Dickson Lukose","Diego Ferreiro Val","Dmitry Barinov","Dmitry Markushevich","Dominik Riemer","Dominique Guinard","Don Brutzman","Donald Evans","Drummond Reed","DUK KI HONG","Eduardo Oliva","Edward Bice","Eli Yaacoby","Emilia Ojala","Eric Duffy","Eric Leandri","Eric Siow","Eric Velleman","Erich Bremer","Erich Karl Clauer","Erik Mannens","Erika Verenice Quezada","Evan Prodromou","Evan Schwartz","Fabien Gandon","Fei Peng","Fons Kuijk","Frank Hoffman","Frode Kileng","Furkan KAMACI","Futomi Hatano","Garenne Bigby","Garry Grant","Gavin Walker","Geoff Jukes","Georg Rehm","George Bina","George Fletcher","Geunhyung Kim","Gian Wild","Gil Yehuda","Glenn Adams","GLENN ATKINSON","Harold Solbrig","Hartmut Richard Glaser","HEATHER PRICE","Henricus Cabanier","Henrik Svensson","Henry Thompson","Hiroki Yamada","Hiroshi Fujisawa","Hiroshi Fujiwara","Hiroshi Sakakibara","Hitoshi Komori","Hongru (Judy) Zhu","Huai Bo Yan","Hugh McGuire","Hyojin Song","HyukHoon SHIM","Ian Horrocks","Ibrahima NGOM","Ichiya Nakamura","Inaki Velez de Guevara Rodriguez","Ingo Simonis","Irini Fundulaki","J.B. Domingue","Jaesig Kang","Jake Benson","Jalpesh Chitalia","James Helman","James MacWhyte","James Tauber","Jamie Clark","Jamie Pitts","Jan Pilbauer","Janne Saarela","Jason Proctor","Javier Bikandi","Jean-Luc Bouthemy","Jean-Pierre EVAIN","Jean-Yves ROSSI","Jeff Waters","Jeffrey Riedmiller","Jeong-Hun Oh","Jeremy Tandy","Jet Yu","Jie Bao","Joe Winograd","Joenggeun Lee","Johan Rempel","John Best","John Bruce","John Foliot","John Fontana","John Kirkwood","John Luther","Jon Vazquez","Jonathan Avila","Joost de Valk","Jordana Burson","Jörg Heuer","Jose Luis Martínez","Joseph Hall","Juan Carlos Cruellas","Juan Carlos Rodríguez Rodríguez","Juan Jose Sanchez Penas","Juejia Zhou","Julian Harriott","Jun Murai","Junichi Sakamoto","Junichi Yoshii","Junko Kamata","Kangchan Lee","Kasar Masood","Katie Haritos-Shea","Kazuhito Kidachi","Kazuo Hikawa","Kenneth Mealey","Kevin Fleming","Kingsley Idehen","Klaus-Peter Hoeckner","Kris Ketels","Kris McGlinn","Krystian Czesak","Kumanan Yogaratnam","Larry Skutchan","Laszlo Kovacs","Laura Townsend","Laurent Bernardin","Laurent Flory","Laurent Le Meur","Lawrence Cheng","Léonie Watson","Linda van den Brink","Loc Dao","Luc Audrain","Luis Guzman","Mahesh Kulkarni","Manisha Amin","Manu Sporny","Manuel Lavín Delgado","Marc van Hilvoorde","Marcelo Zuffo","Maria Jesus Fernandez Ruiz","Mario Como","Mark Sadecki","Mark Shapiro","Mark Vickers","Mark Watson","Markku Hakkinen","Markus Meister","Martin Klein","Mary Brady","Masashi Suzuki","Mateus Teixeira","Mateusz Przepiorkowski","Matt Goonan","Matt Saxon","Matt Stone","Matthew Horridge","Matthew Triner","Maurice York","Mi-soo Kwon","Michael Bergman","Michael Champion","Michael Cokus","Michael Koster","Michael Markevich","Michael McCaffrey","Michael Moran","Michael Tiffany","Michallis Pashidis","Michel Buffa","Michel Leger","Michel Weksler","Michelle Bu","Michiel Schok","Michimasa Uematsu","Mickael Schneider","Miguel Amutio","Mike O'Neill","Mingjie Chen","Mohamed ZERGAOUI","Mohammed DADAS","Motoi Suzuki","MOTOI SUZUKI","Mountie Lee","muhammad saleem","Najib Tounsi","Nathan George","Nathan Schloss","Neil King","Nell Waliczek","Nelson Piedra","Neven Vrček","Nic Jansma","Nicholas Gibbins","Nick Leake","Nicky Yick","Nishant Shukla","Norma Palomino","Norman Walsh","Nurit Sprecher","OH SAEYONG","Orie Steele","Pablo COCA","Patrick Adler","Patrick Johnston","Patrick Lünnemann","Paul Ferris","Paul Lipton","Peter Bruhn Andersen","Peter Leinen","Peter Parslow","Peter Snyder","Peter Virk","Peter Winstanley","Petr Peterka","Petri Vuorimaa","Phil Archer","Phil Ritchie","Prasad Yendluri","Qamar Zaman Hussain","Quentin Williams","Rachel Andrew","Rachel Comerford","Rahul Ramachandran","Raj Tumuluri","Ralph Brown","Ralph Hodgson","Ralph Swick","Ram Mohan","Rang-Hyuck Lee","Raphaël Troncy","Raúl García Castro","Ravinder Singh","Ray Denenberg","Rebeca Ruiz S","Reto Gmür","Richard Martelli","Rick Johnson","Rob Manson","Rob Trainer","Robert Reany","Robert Sanderson","Rolf Lindemann","Roman Kagarlitsky","Rowan Smith","rui liu","Russell Kendall","Ryan Cho","Sandro Hawke","Sangchul Ahn","Sangho Lee","Sarah Pulis","Satoru Kanno","Satoru Takagi","Sebastian Käbisch","Sebastian Schnitzenbaumer","Shane McCarron","Shay Dotan","Shilpi Kapoor","Shinichi Yoshizawa","Shuning Pang","Shuyuan Jiang","Shwetank Dixit","Simon-Pierre Marion","Siva Narendra","Siyang Liu","So Vang","Sogo Wakasugi","Song Li","Songfeng Li","Soosung Chun","Stefan Håkansson","Steve Battle","Steve Faulkner","Steve Wagendorp","Steven Crumb","Steven Pemberton","Steven Sarsfield","Sumio Noda","Swaran Lata","T.V. Raman","Taehyun Kim","Takashi Minamii","Takeaki Endo","Takeshi Horiuchi","Takeshi Mitamura","Takuya Horiki","Tatsuya Ida","Tatsuya Igarashi","Tetsuhiko Hirata","Thomas Baker","Thomas D'Haenens","Tianqi Han","Tim Smith","Timothy Cole","Tobias Kuhn","Tomofumi Okubo","Udana Bandara","Ulrich Keil","Varun Singh","Victor Soares","Vivienne Conway","Vlad Trifa","Vladimir Levantovsky","Wei Hu","William Vanobberghen","Wilson Wilson","WOOGLAE KIM","Yadong Wu","Yancy Ribbens","Yang Liu","YANG Xiaoyu","Yang-Juh Lai","Yaron Sheffer","yi zhou","Yike Guo","Yinfeng Wang","Yoshiaki Ohsumi","Yoshiaki Tanaka","Young Gi Kim","Youngmin Ji","Youngsun Ryu","Yukinori Endo","Yumiko Matsuura","Zachary Townsend","Zhiqiang Yu"];
+    const memberdb = 'https://jbusa:w3cisthebest!@www.w3.org/Systems/db/advancedSearch?disp_fields%5B%5D=name&disp_fields%5B%5D=last&disp_fields%5B%5D=acEmail&disp_fields%5B%5D=host&delimeter=&name=&alphaname=&url=&mPhone=&mFax=&category=&interests=&address1=&address2=&address3=&city=&state=&postalCode=&country=&mitCustNum=&mrm=&currentMember=1&at_risk=&contractReceived=&acForum=&feeTier=&currency=&host=&vat=&worldRegion=&contractBegan=&contractBeganMod=%3D&office=&dateJoined=&dateJoinedMod=%3D&termDate=&termDateMod=%3D&termAction=&termActionMod=%3D&termCode=&lastModi=&lastModiMod=%3D&paidThruDate=&paidThruDateMod=%3D&billCheckDate=&billCheckDateMod=%3D&invoiceQuarter=&comments=&first=&last=&suCity=&suState=&suCountry=&phone=&fax=&email=&action=Search';
+    const page2 = await browser.newPage();
+    await page2.goto(memberdb, {"waitUntil" : "networkidle0"});
+    // users with AC in from member db
+    let html = await page2.content();
+    let AC_users = getMatches(html, /<tr[\s\S]*?<td[\s\S]*?<td[\s\S]*?<a[\s\S]*?>([\S\s]*?)</g);
+    
+    await page2.close();
+    // get users with relationship ac in bigcontacts
+    await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
+    await page.waitFor(3000);
+    await page.goto(url, {"waitUntil" : "networkidle0"});
+    await page.waitFor(3000);
+    await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
+    await page.evaluate(() => { document.querySelector('#header').style.display = 'none'; });
+    
+    const contactGroup = await page.$x("//a[text() = 'Contact Groups']");
+    await contactGroup[0].click();
+    await page.click(".include-field-checkbox[data-label = 'Relationship']");
+    await page.click("#reports-table-contact_groups > div > div.search-fields > div:nth-child(2) > div.col-sm-6.field-row.active-field-row > div:nth-child(4) > select");
+    await (await page.$('#reports-table-contact_groups > div > div.search-fields > div:nth-child(2) > div.col-sm-6.field-row.active-field-row > div:nth-child(4) > select')).press('ArrowDown');
+    await (await page.$('#reports-table-contact_groups > div > div.search-fields > div:nth-child(2) > div.col-sm-6.field-row.active-field-row > div:nth-child(4) > select')).press('Enter');
+    await page.click("#tab_advanced_search > div > div.row.m-b-md > div.col-sm-4.text-right.text-left-xs > div > a.btn.btn-primary");
+    await page.waitFor(3000);
+    var go = true;
+    let BC_AC = [];
+    let first = true;
+    while(go) 
+    {
+        
+        // add the pages of data into one array
+        var regex = new RegExp(/<tr[\s\S]*?<td[\s\S]*?<td[\S\s]*?id=(\d*?)"[\S\s]*?>[\s]+([\S ]*)[\S\s]*?<td>[\S\s]*?>[\s]+([\S ]*)/g);
+        await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
+        await page.waitFor(1000);
+        let pageData = await page.content();
+        let onePage = pageData.match(/tbody>[\S\s]*?<\/tbody/);
+        let diff = getAllMatches(onePage, regex);
+        BC_AC = BC_AC.concat(diff);
+        let arrow = await page.$(".next > a");
+        go = arrow === null ? false : true;
+        if(first)
+        {
+            await autoScrollDown(page);
+            first = false;
+        }
+        if(go)
+        {
+            
+            await arrow.click();
+            await page.waitFor(3000);
+        }
+        
+    }
 
 
-      // loop through the users
-        // if the ui-autocomplete is display none then log the person in an array of people who are not in the BigContacts list
-        // else click the first ui-menu-item
-            // figure out how to make sure that puppeteer doesn't stop due to page change
-            // click id="dropdownMenuActions"
-            // click class="edit-contact"
-            // figure out how to make sure that puppeteer doesn't stop due to page change
-            // click class = "active"
-            // click id="bigcontacts_contact_form_group_relationship"
-            // click #bigcontacts_contact_form_group_relationship > option:nth-child(2)
-            // .contact-submit
-            // bigcontacts_contact_form_comments
-      // todo
-      // put into a different database when the names don't match exactly
-      // give the name of the actual one and the name of the incorrect one 
+    // loop through the memberdb checking each one against each person with the same first letter in bigcontacts
+    // for example check all every a and then once you get to the end you log that index
+    // then you do that for every a and once you get to b use the index above as the starting point
+
+    // check if the next one is the same as this one
+    // if it is delete all of the ones with that name from both arrays
+
+    // if you find one that matches delete it from the array and keep going
+    // if it is the same as the next one, check to see 
+    // don't do anything with people who have 2 
+    // if you don't find one then add one
+    // take the remaining array and remove all of their ac rep titles
+    
+
+    // get rid of the white space entries
     for(let i = 0; i < AC_users.length; i++)
     {
-        try 
+      let element = AC_users[i];
+      element = element.trim();
+      AC_users[i] = element.toLowerCase();
+      if(!element || !element.trim())
+      {
+        AC_users.splice(i, 1);
+        i--;
+      }
+    }
+    // sort both alphabetically 
+    AC_users.sort();
+    // need to change to lowercase before sorting
+    for(let z = 0; z < BC_AC.length; z++)
+    {
+        BC_AC[z] = BC_AC[z].toLowerCase();
+        
+    }
+    BC_AC.sort();
+    // if there are more than one in the member db
+      // check the previous one
+    let BC_AC_info = [];
+    BC_AC.forEach(function(element) {
+        element = element.toLowerCase();
+        BC_AC_info.push(element.split("|"));
+    });
+    // loop through member
+    // if both are correct then remove and add one to both indexes
+    // if not equal don't add one to the bc index
+    // loop through until you find it if not add a new one
+
+    let j = 0;
+    let c = 0;
+    for(let i = 0; i < AC_users.length; i++)
+    {
+        j = i - c;
+        // check for a match
+        
+        if(BC_AC_info[j].length == 2 && stringSimilarity.compareTwoStrings(AC_users[i], BC_AC_info[j][0]) > .8)
         {
-            //await page.waitFor(3000);
-            await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
-            let check = await page.evaluate((user) => 
-            {
-                document.querySelector('#contact_name_nav').value = '';
-                document.querySelector('#contact_name_nav').value = user;
-                return "good";
-            }, AC_users[i]);
-            await (await page.$('#contact_name_nav')).press('ArrowLeft');
-            await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
-            await page.waitFor(3000);
-            const selector_child  = `#ui-id-1 > li:nth-child(2)`;
-            let arrow = await page.$(selector_child);
-            if(!arrow)
-            {
-                if(await checkUnique(AC_users[i], connection))
-                {
-                    let sql = `INSERT INTO false_ac_reps(name)
-                        VALUES(?)`;
-                    let sqlValues = [AC_users[i]];
-                    let res1 = await connection.query(sql, sqlValues);
-                }
-            }
-            else
-            {
-                let arrowtext = await page.evaluate(arrow => arrow.textContent, arrow);
-                let checked = arrowtext.replace(/\s*\([\S\s]*\)\s*/, "");
-                if(checked !== AC_users[i])
-                {
-                    if(await checkUnique(AC_users[i], connection))
-                    {
-                        let sql = `INSERT INTO false_ac_reps(name, result)
-                        VALUES(?,?)`;
-                        let sqlValues = [AC_users[i], checked];
-                        let res1 = await connection.query(sql, sqlValues);
-                    }
-                }
-                else
-                {
-                    // if there are two people with the same name just add the name to the database
-                    const checktwins  = `#ui-id-1 > li:nth-child(3)`;
-                    let twin = await page.$(checktwins);
-                    let twinname = twin ? await page.evaluate(twin => twin.textContent, twin) : "";
-                    let twintrim = twinname.replace(/\s*\([\S\s]*\)\s*/, "");
-                    if(twintrim === AC_users[i] && await checkUnique(AC_users[i], connection))
-                    {
-                        let sql = `INSERT INTO false_ac_reps(name, result)
-                        VALUES(?,?)`;
-                        let sqlValues = [AC_users[i], twintrim];
-                        let res1 = await connection.query(sql, sqlValues);
-                    }
-                    else 
-                    {
-                        await page.click(".ui-menu-item");
-                        await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
-                        await page.click(".contact-view:not(.hidden) > .actions > .btn-group");
-                        await page.click(".contact-view:not(.hidden) > div.actions.clearfix.no-print.pull-right.pull-none-xs > div.btn-group.open > ul > li.edit-contact");
-                        await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
-                        await autoScrollUp(page);
-                        await page.waitFor(2000);
-                        await page.click("#addContactForm > div.row > div.col-sm-8 > div > ul > li:nth-child(2)");
-                        await autoScrollDown(page);
-                        await page.waitFor(500);
-                        await page.click("#bigcontacts_contact_form_group_relationship");
-                        await (await page.$('#bigcontacts_contact_form_group_relationship')).press('ArrowUp');
-                        await (await page.$('#bigcontacts_contact_form_group_relationship')).press('ArrowUp');
-                        await (await page.$('#bigcontacts_contact_form_group_relationship')).press('ArrowUp');
-                        await (await page.$('#bigcontacts_contact_form_group_relationship')).press('ArrowUp');
-                        await (await page.$('#bigcontacts_contact_form_group_relationship')).press('ArrowDown');
-                        await (await page.$('#bigcontacts_contact_form_group_relationship')).press('Enter');
-                        await page.waitFor(1000);
-                        await autoScrollUp(page);
-                        await page.waitFor(1000);
-                        await page.click(".contact-submit");
-                        await page.waitForSelector('#contact_name_nav', {
-                            visible: true,
-                        });
-                        await page.waitForFunction(() => document.querySelector('.spinner').style.display === "none");
-                    }
-                }
-            }
+            // remove the id so that we don't add it later
+            BC_AC_info[j].pop();
+            continue;
         }
-        catch(e)
+        c += 1;
+        let sim = 0;
+        let checkindex = 0;
+        
+        while(j < BC_AC_info.length)
+        {   
+            let multisim = 0;
+            if(BC_AC_info[j].length == 2)
+            {
+             multisim = stringSimilarity.compareTwoStrings(AC_users[i], BC_AC_info[j][0]);
+            }
+            if(multisim > sim)
+            {
+                sim = multisim;
+                checkindex = j;
+            }
+            j++;
+        }
+        if(sim > .8)
         {
-            console.log("Connection Error:" + e);
+                // remove the id so that we don't add it later
+                BC_AC_info[checkindex].pop();
+                nomatch = false;
+        }
+        else
+        {
+            //////////
+            // Add a new ac rep with the name BC_AC_info[j]
+            const page3 = await browser.newPage();
+            await page3.goto("https://app.bigcontacts.com/contacts/typeahead?term=" + AC_users[i], {"waitUntil" : "networkidle0"});
+            // users with AC in from member db
+            let gettingjson = await page3.content();
+            gettingjson = gettingjson.match(/{[\s\S]*}/);
+            let parsing = JSON.parse(gettingjson);
+            
+            await page3.close();
+            let noexist = true;
+            if(parsing !== null)
+            {
+                let keys = Object.keys(parsing);
+                
+                for(let k = 0; k < keys.length; k++)
+                {
+                    // if the member db user matches the bc user then promote ac
+                    let BCuser = keys[k].match(/^[0-9a-zA-Z\s]*/);
+                    BCuser = BCuser[0].match(/[a-zA-Z\s]+$/);
+                    if(BCuser[0].trim() === AC_users[i])
+                    {
+                        await promoteACRep(keys[k].match(/^[0-9]*/));
+                        noexist = false;
+                        break;
+                    }
+                }
+            }
+            if(noexist)
+            {
+                await createContact.newContact(AC_users[i], token);
+            }
+            // two cases they either don't exist or exist without ac rep
+        }
+    }
+    for(let j = 0; j < BC_AC_info.length; j++)
+    {
+        if(BC_AC_info[j].length === 2)
+        {
+            //////////
+            // remove ac rep with the name BC_AC_info[j][0] and id BC_AC_info[j][1]
+            await removeACRep(BC_AC_info[j][1]);
         }
     }
     connection.end();
 }
 processSQL();
+
+async function removeACRep(id)
+{
+    let testurl = "https://app.bigcontacts.com/api/contact/"+ id +".json";
+    let tested = await getId(testurl, token);
+    tested = JSON.parse(tested.body);
+    tested = tested.payload.categories;
+    for(let i = 0; i < tested.length; i++)
+    {
+        if(tested[i].name === "Relationship")
+        {
+            tested.splice(i, 1);
+            break;
+        }
+    }
+    tested = {"categories" : tested};
+    let removed = await updateRelationship(testurl, token, tested);
+    if(removed.statusCode !== 200)
+    {
+        console.log("Error! Id: " + id);
+        console.log("Code: " + removed.statusCode);
+        console.log("Message: " + removed.statusMessage);
+    }
+}
+async function promoteACRep(id)
+{
+    let testurl = "https://app.bigcontacts.com/api/contact/"+ id +".json";
+    let tested = await getId(testurl, token);
+    tested = JSON.parse(tested.body);
+    tested = tested.payload.categories;
+    let AC_Rep = {id: 61544, name: "Relationship", value: "AC Rep"};
+    tested.push(AC_Rep);
+    tested = {"categories" : tested};
+    let added = await updateRelationship(testurl, token, tested);
+    if(added.statusCode !== 200)
+    {
+        console.log("Error! Id: " + id);
+        console.log("Code: " + added.statusCode);
+        console.log("Message: " + added.statusMessage);
+    }
+}
+ async function checkUnique(name, connection) 
+ {
+    let selectFalse = "SELECT id FROM false_ac_reps WHERE name = '"+ name +"'";
+    let dupe = await connection.query(selectFalse);
+    return dupe.length === 0;
+ }
+ function getMatches(string, regex, index) 
+ {
+    index || (index = 1); // default to the first capturing group
+    var matches = [];
+    var match;
+    while (match = regex.exec(string)) {
+      matches.push(match[index]);
+    }
+    return matches;
+}
+function getAllMatches(string, regex) 
+{
+   var matches = [];
+   var match;
+   while (match = regex.exec(string)) {
+     matches.push(match[2].trim() + " " + match[3].trim() + "|" + match[1].trim());
+   }
+   return matches;
+}
+const updateRelationship = async ( url, token, tag ) => new Promise((resolve, reject) => {
+    request.put({
+      headers: {
+          'content-type': 'application/json',
+          "Authorization" : "Bearer " + token
+      },
+      json: tag,
+      url: url
+      }, (error, response, body) => {
+        resolve(response);
+      }
+    );
+  });
+  const getId = async ( url, token ) => new Promise((resolve, reject) => {
+    request.get({
+      headers: {
+          'content-type': 'application/json',
+          "Authorization" : "Bearer " + token
+      },
+      url: url
+      }, (error, response, body) => {
+        resolve(response);
+      }
+    );
+});
 async function autoScrollDown(page){
     await page.evaluate(async () => {
         await new Promise((resolve, reject) => {
@@ -167,26 +336,3 @@ async function autoScrollDown(page){
         });
     });
 }
-async function autoScrollUp(page){
-    await page.evaluate(async () => {
-        await new Promise((resolve, reject) => {
-            var totalHeight = 0;
-            var distance = -100;
-            var timer = setInterval(() => {
-                var scrollHeight = document.body.scrollHeight;
-                window.scrollBy(0, distance);
-                totalHeight -= distance;
-
-                if(totalHeight >= scrollHeight){
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
-    });
-}
- async function checkUnique(name, connection) {
-    let selectFalse = "SELECT id FROM false_ac_reps WHERE name = '"+ name +"'";
-    let dupe = await connection.query(selectFalse);
-    return dupe.length === 0;
- }
